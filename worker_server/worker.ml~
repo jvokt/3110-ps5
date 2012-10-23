@@ -39,14 +39,14 @@ let rec handle_request client =
             handle_request client
           else ()
         | MapRequest (id, k, v) -> 
-          if (* worker is valid *) then
+          if (* check if worker is valid *) then
             let results = Program.run id input in
             match results with
             | None -> send_response client (RuntimeError(id,"Error"))
             | Some result -> MapResults(id,result)
           else send_response client (InvalidWorker (id))
         | ReduceRequest (id, k, v) -> 
-          if (* worker is valid *) then
+          if (* check if worker is valid *) then
             let results = Program.run id input in
             match results with
             | None -> send_response client (RuntimeError(id,"Error"))
