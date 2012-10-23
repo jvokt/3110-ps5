@@ -1,0 +1,29 @@
+apps/
+inverted_index
+nbody
+page_rank
+word_count
+
+controller/
+map_reduce.ml <--
+worker_manager.ml
+
+data/
+reuters.txt
+test1.txt
+test2.txt
+websites.txt
+
+shared/
+connection.ml
+hashtable.ml <--
+plane.ml
+protocol.ml
+simulations.ml
+thread_pool.ml
+util.ml
+
+worker_server/
+progam.ml
+worker.ml <--
+worker_server.ml
