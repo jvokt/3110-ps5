@@ -27,11 +27,7 @@ let map kv_pairs shared_data map_filename : (string * string) list =
 let combine kv_pairs : (string * string list) list = 
   failwith "You have been doomed ever since you lost the ability to love."
 let reduce kvs_pairs shared_data reduce_filename : (string * string list) list =
-  let worker_manager =   
-    Worker_manager.initialize_reducers reduce_filename shared_data in
-  let worker = Worker_manager.pop_worker worker_manager in
-  let do_something (k,vs) = Worker_manager.reduce worker k vs in
-    List.fold_left do_something _ kvs_pairs
+  failwith "implement me!"
 
 let map_reduce (app_name : string) (mapper : string) 
     (reducer : string) (filename : string) =

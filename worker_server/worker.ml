@@ -14,7 +14,7 @@ let hashtbl_find = Hashtbl.find
 
 let in_hashtbl = Hashtbl.mem
 
-let activeWorkers = make_hashtbl lst in  
+let activeWorkers = Hashtbl.create 10 in  
 
 let send_response client response =
   let success = Connection.output client response in
@@ -38,7 +38,8 @@ let rec handle_request client =
           let build = 
             (match Program.build source with 
             | (Some(id), "") -> 
-              Mapper(Some(id),shared_data)
+              (hashtbl_add activeWorkers id "mapper";
+              Mapper(Some(id),shared_data))
             | (None, error_msg) -> 
               Mapper(None, error_msg)) in
           if (send_response client build) then
@@ -48,14 +49,15 @@ let rec handle_request client =
           let build = 
             (match Program.build source with 
             | (Some(id), "") -> 
-              Reducer(Some(id),shared_data)
+              (hashtbl_add activeWorkers id "reducer";
+              Reducer(Some(id),shared_data))
             | (None, error_msg) -> 
               Reducer(None, error_msg)) in
           if (send_response client build) then
             handle_request client
           else ()
         | MapRequest (id, k, v) -> 
-          if (* worker is valid *) then
+          if hashtbl_find activeWorkers id = "mapper" then
             let results = Program.run id input in
             match results with
             | None -> send_response client (RuntimeError(id,"Error"))
@@ -65,7 +67,7 @@ let rec handle_request client =
               MapResults(id,result')
           else send_response client (InvalidWorker (id))
         | ReduceRequest (id, k, v) -> 
-          if (* worker is valid *) then
+          if hashtbl_find activeWorkers id = "reducer" then
             let results = Program.run id input in
             match results with
             | None -> send_response client (RuntimeError(id,"Error"))
