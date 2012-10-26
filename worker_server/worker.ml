@@ -1,5 +1,21 @@
 open Protocol
 
+(* Hashtable helpers *)
+
+(* Given a list of (key, value) pairs, return a corresponding hash table *)
+let make_hashtbl (lst : ('a * 'b) list) : ('a, 'b) Hashtbl.t =
+  let hashtbl = Hashtbl.create (List.length lst) in
+  let _ = List.iter (fun (key, value) -> Hashtbl.add hashtbl key value) lst in
+  hashtbl
+
+let hashtbl_add hsh k v = Hashtbl.add hsh k v; hsh
+
+let hashtbl_find = Hashtbl.find
+
+let in_hashtbl = Hashtbl.mem
+
+let activeWorkers = make_hashtbl lst in  
+
 let send_response client response =
   let success = Connection.output client response in
     (if not success then
