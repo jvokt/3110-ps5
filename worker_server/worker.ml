@@ -43,14 +43,20 @@ let rec handle_request client =
             let results = Program.run id input in
             match results with
             | None -> send_response client (RuntimeError(id,"Error"))
-            | Some result -> MapResults(id,result)
+            | Some result -> 
+              let result' = 
+                List.map (fun x -> marshall x) result in
+              MapResults(id,result')
           else send_response client (InvalidWorker (id))
         | ReduceRequest (id, k, v) -> 
           if (* worker is valid *) then
             let results = Program.run id input in
             match results with
             | None -> send_response client (RuntimeError(id,"Error"))
-            | Some result -> ReduceResults(id,result)
+            | Some result -> 
+              let result' = 
+                List.map (fun x -> marshall x) result in
+              ReduceResults(id,result')
           else send_response client (InvalidWorker (id))
       end
   | None ->
