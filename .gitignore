@@ -8,6 +8,7 @@
 *.so
 *.cmi
 *.cmo
+*.cma
 
 # Packages #
 ############

@@ -4,27 +4,28 @@ open Worker_manager
 (* TODO implement these *)
 
 let map kv_pairs shared_data map_filename : (string * string) list = 
-  let (queue, lock, condition, workers) as worker_manager = 
-    Worker_manager.initialize_mappers map_filename shared_data in
+  let (* (queue, lock, condition, workers) *) worker_manager =
+    Worker_manager.initialize_mappers map_filename shared_data (* as worker_manager *)
+  in
     let final_output = ref [] in
     let pool = Thread_pool.create (List.length kv_pairs) in
-    let concat_lock = Mutex.create in
-    let spawn_threads (file,contents) =
-      let rec f = 
+    let concat_lock = Mutex.create () in
+    let spawn_threads () (file,contents) =
+      let rec f () = 
         let worker = Worker_manager.pop_worker worker_manager in
           match (Worker_manager.map worker file contents) with
-          | None -> f
+          | None -> f ()
             (*Worker_manager.push_worker worker_manager worker; *)
           | Some lst -> 
-            Mutex.lock concat_lock;
-            final_output := List.concat lst !final_output;
-            Mutex.unlock concat_lock;
-            Worker_manager.push_worker worker_manager worker;
+              Mutex.lock concat_lock;
+              final_output := (List.rev_append (List.rev lst) !final_output);
+              Mutex.unlock concat_lock;
+              Worker_manager.push_worker worker_manager worker
       in Thread_pool.add_work f pool
-    in List.map spawn_threads kv_pairs;
-       Worker_manager.clean_up_workers;
+    in List.fold_left spawn_threads () kv_pairs;
+       Worker_manager.clean_up_workers worker_manager;
        Thread_pool.destroy pool;
-        final_ouput
+        !final_output
   
 let combine kv_pairs : (string * string list) list = 
   failwith "You have been doomed ever since you lost the ability to love."
