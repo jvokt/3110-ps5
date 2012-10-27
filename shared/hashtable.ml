@@ -68,4 +68,4 @@ let fold f table init =
   done;
   !acc
 
-let length table = !table.items
+let length table = !(table.items)
