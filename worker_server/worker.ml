@@ -68,15 +68,19 @@ let rec handle_request client =
         let built = reducer_builder source in
         if (send_response client built) then handle_request client else ()
     | MapRequest (id, k, v) -> 
+        let response = 
         if (Hashtbl.find activeWorkers id) = "mapper" then
           let results = Program.run id input in map_requester client id results
         else 
-          send_response client (InvalidWorker (id))
+          send_response client (InvalidWorker (id)) in
+        if response then handle_request client else ()
     | ReduceRequest (id, k, v) -> 
+        let response = 
         if (Hashtbl.find activeWorkers id) = "reducer" then
           let results = Program.run id input in red_requester client id results
         else 
-          send_response client (InvalidWorker (id)))
+          send_response client (InvalidWorker (id)) in
+        if response then handle_request client else ())
   | None ->
       Connection.close client;
       print_endline "Connection lost while waiting for request."
