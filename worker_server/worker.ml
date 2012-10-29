@@ -62,25 +62,29 @@ let rec handle_request client =
   | Some v ->
     (match v with
     | InitMapper (source, shared_data) -> 
+        (print_endline "init mapper";
         let built = mapper_builder source shared_data in
-        if (send_response client built) then handle_request client else ()
-    | InitReducer source -> 
+        if (send_response client built) then handle_request client else ())
+    | InitReducer source ->
+        (print_endline "init reducer"; 
         let built = reducer_builder source in
-        if (send_response client built) then handle_request client else ()
+        if (send_response client built) then handle_request client else ())
     | MapRequest (id, k, v) -> 
+        (print_endline "map request";
         let response = 
         if (Hashtbl.find activeWorkers id) = "mapper" then
           let results = Program.run id input in map_requester client id results
         else 
           send_response client (InvalidWorker (id)) in
-        if response then handle_request client else ()
+        if response then handle_request client else ())
     | ReduceRequest (id, k, v) -> 
+        (print_endline "reduce request";
         let response = 
         if (Hashtbl.find activeWorkers id) = "reducer" then
           let results = Program.run id input in red_requester client id results
         else 
           send_response client (InvalidWorker (id)) in
-        if response then handle_request client else ())
+        if response then handle_request client else ()))
   | None ->
       Connection.close client;
       print_endline "Connection lost while waiting for request."
