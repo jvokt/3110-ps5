@@ -104,9 +104,9 @@ let reduce kvs_pairs shared_data reduce_filename : (string * string list) list =
       Mutex.lock m;
       (match !remaining_work with
       | [] -> ()
-      | (k,v)::t -> 
+      | (k,vs)::t -> 
           let worker = Worker_manager.pop_worker worker_manager in
-          (match (Worker_manager.reduce worker k v) with
+          (match (Worker_manager.reduce worker k vs) with
           | None -> ()
           | Some lst ->
               final_output := (k,lst)::!final_output;
