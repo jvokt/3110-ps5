@@ -1,71 +1,59 @@
 type ('a, 'b) t = 
-  { items : int ref;
-    table : ((('a * 'b) list) array) ref;
+  { capacity : int ref;
+    size : int ref;    
+    contents : ((('a * 'b) option) array) ref;
     hash : 'a -> int }
 
 let create capacity hash = 
-  { items = ref 0; 
-    table = ref (Array.make capacity []);
-    hash = hash }
-    
-let rec resize h =
-  let n = Array.length !(h.table) in
-  let h' = create (2 * n) h.hash in
-  for i = 0 to n - 1 do
-    List.iter
-      (fun (k,v) -> add h' k v) 
-      !(h.table).(i)
-  done;
-  h.table := !(h'.table)
-    
-and add table key value = 
-  if !(table.items) >= Array.length !(table.table) * 2 then 
-    resize table;
-  let i = table.hash key in 
-  !(table.table).(i) <- (key, value)::!(table.table).(i);
-  table.items := !(table.items) + 1
-
-(* needs to raise Not_found exception appropriately *)  
-let find table key = 
-  let i = table.hash key in
-  snd (List.hd !(table.table).(i))
-(*  let i = table.hash key in
-  try Some (List.assoc key !(table.table).(i)) 
-  with Not_found -> None
-*)
+  { capacity = ref capacity;
+    size = ref 0; 
+    contents = ref (Array.make capacity None);
+    hash = hash  }
 
 let mem table key = 
-  let i = table.hash key in
-  if !(table.table).(i) = [] then false else true
+  let i = (table.hash key) mod !(table.capacity) in 
+  !(table.contents).(i) <> None
+
+let iter f table =
+  for i = 0 to !(table.capacity) - 1 do
+    match !(table.contents).(i) with
+    | None -> ()
+    | Some (key, value) -> f key value
+  done
+    
+let rec add table key value = 
+  if !(table.capacity) <= !(table.size)*2 then resize table else ();
+  if (not (mem table key)) then (table.size := !(table.size) + 1) else ();
+  let i = (table.hash key) mod !(table.capacity) in
+  !(table.contents).(i) <- Some (key, value)
+
+and resize table =
+  let table' = create (!(table.capacity)*2) table.hash in
+  iter (fun k v -> add table' k v) table;
+  table.contents := !(table'.contents);
+  table.capacity := !(table'.capacity) 
+
+let find table key = 
+  let i = (table.hash key) mod !(table.capacity) in
+  match !(table.contents).(i) with
+  | None -> raise Not_found 
+  | Some (key, value) -> value
 
 let remove table key = 
-  let i = table.hash key in 
-  let rec pop acc l = 
-    match l with 
-    | [] -> (false,List.rev acc)
-    | (k',v)::t -> if k' = key then (true,List.rev_append acc t) else pop ((k',v)::acc) t in 
-  let b,l' = pop [] !(table.table).(i) in 
-  !(table.table).(i) <- l';
-  if b then table.items := !(table.items) - 1 else ()
-
-let iter (f : 'a -> 'b -> unit) table =
-  let stop = (Array.length !(table.table)) - 1 in
-  let f' (a, b) =
-    f a b
-  in
-  for i = 0 to stop do
-    List.hd (List.map f' !(table.table).(i));
-  done
+  if (mem table key) then (table.size := !(table.size) - 1) else ();
+  let i = (table.hash key) mod !(table.capacity) in 
+  !(table.contents).(i) <- None
       
-let fold f table init = 
-  let stop = (Array.length !(table.table)) - 1 in
-  let f' acc (a, b) =
-    f a b acc
+let fold f table init =  
+  let f' acc kv_option =
+    match kv_option with
+    | None -> acc
+    | Some (key, value) -> f key value acc
   in
   let acc = ref init in
-  for i = 0 to stop do
-    acc := List.fold_left f' !acc !(table.table).(i);
+  for i = 0 to !(table.capacity) - 1 do
+    acc := f' !acc !(table.contents).(i);
   done;
   !acc
 
-let length table = !(table.items)
+let length table = !(table.size)
