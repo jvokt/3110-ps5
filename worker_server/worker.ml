@@ -23,55 +23,45 @@ let reducer_builder source : worker_response =
   match Program.build source with 
   | (Some(id), _) -> 
     (Hashtbl.add activeWorkers id "reducer"; 
-      Mapper(Some(id),""))
+      Reducer(Some(id),""))
   | (None, error_msg) -> Reducer(None, error_msg)
 
 let map_requester client id results =
   match results with
-  | None -> (print_endline "derp"; send_response client (RuntimeError(id,"Error")))
-  | Some result ->
-      (print_endline "herp"; 
-      let result' = List.map (fun (x,y) -> ((marshal x), (marshal y))) result in
-      send_response client (MapResults(id, result')))
+  | None -> send_response client (RuntimeError(id,"Error"))
+  | Some result -> send_response client (MapResults(id, result))
     
 let red_requester client id results =
   match results with
   | None -> send_response client (RuntimeError(id,"Error"))
-  | Some result -> 
-      let result' = List.map (fun x -> (marshal x)) result in
-      send_response client (ReduceResults(id, result'))
+  | Some result -> send_response client (ReduceResults(id, result))
 
 let rec handle_request client =
   match Connection.input client with
   | Some v ->
     (match v with
     | InitMapper (source, shared_data) -> 
-        (print_endline "init mapper";
         let built = mapper_builder source shared_data in
-        if (send_response client built) then handle_request client else ())
+        if (send_response client built) then handle_request client else ()
     | InitReducer source ->
-        (print_endline "init reducer"; 
         let built = reducer_builder source in
-        if (send_response client built) then handle_request client else ())
+        if (send_response client built) then handle_request client else ()
     | MapRequest (id, k, v) -> 
-        (print_endline "map request";
         let response = 
         if (Hashtbl.mem activeWorkers id && Hashtbl.find activeWorkers id = "mapper") then
-          (print_endline "worker found!";
-          let results = Program.run id (k,v)(* (Program.get_input ()) *) 
-          in map_requester client id results)
+          let results = Program.run id (k,v)
+          in map_requester client id results
         else 
           send_response client (InvalidWorker (id)) in
-        if response then handle_request client else ())
+        if response then handle_request client else ()
     | ReduceRequest (id, k, v) -> 
-        (print_endline "reduce request";
         let response = 
         if (Hashtbl.mem activeWorkers id && Hashtbl.find activeWorkers id = "reducer") then
-          let results = Program.run id (k,v)(* (Program.get_input ()) *) 
+          let results = Program.run id (k,v)
           in red_requester client id results
         else 
           send_response client (InvalidWorker (id)) in
-        if response then handle_request client else ()))
+        if response then handle_request client else ())
   | None ->
       Connection.close client;
       print_endline "Connection lost while waiting for request."
