@@ -1,40 +1,37 @@
-
 open Util
 open Worker_manager
 
-
 let helper pairs manager work output =
-let m = Mutex.create () in
+  let m = Mutex.create () in
   let final_output = ref [] in
-  let in_status = 
-    let tbl = Hashtbl.create (List.length pairs) in
-      List.iter (fun a -> 
-        Hashtbl.add tbl a false) pairs; 
-        tbl 
-    in
-    let status = ref in_status in
-    let rec assign key content () =
-      let mapper = Worker_manager.pop_worker (!manager) in
-      let mapped = work mapper key content in
-      match mapped with
-        | None -> ()
-        | Some lst -> 
-           Worker_manager.push_worker (!manager) mapper ;
-           Mutex.lock m ;
-           output key lst final_output;
-           Hashtbl.replace (!status) (key,content) true;
-           Mutex.unlock m in
-    let tpool = ref (Thread_pool.create 30) in
-    let work () =  Hashtbl.iter (fun (k,v) is_done -> if is_done then () 
-                   else Thread_pool.add_work (assign k v) (!tpool)) (!status) 
-    in
-    let check () = Hashtbl.fold
-                   (fun (key,value) is_done acc-> acc&&is_done) (!status) true
-    in
-    let rec go () = if (check ()) then (Thread_pool.destroy (!tpool); 
-                       clean_up_workers (!manager);(!final_output)) 
-                    else (work () ; go (Thread.delay 0.1)) in
-    work ();(go (Thread.delay 0.1))
+  let status = ref (Hashtbl.create 16) in
+  List.iter (fun kv -> Hashtbl.add !status kv false) pairs;
+  let assign k v () =
+    let worker = Worker_manager.pop_worker (!manager) in
+    let results = work worker k v in
+    match results with
+    | None -> ()
+    | Some lst -> 
+       Worker_manager.push_worker (!manager) worker;
+       Mutex.lock m;
+       output k lst final_output;
+       Hashtbl.replace (!status) (k,v) true;
+       Mutex.unlock m in
+  let pool = ref (Thread_pool.create 30) in
+  let work () = 
+    Hashtbl.iter 
+      (fun (k,v) is_done -> 
+       if is_done then () 
+       else Thread_pool.add_work (assign k v) (!pool)) 
+      (!status) 
+  in
+  let check () = 
+    Hashtbl.fold (fun (key,value) is_done acc-> acc&&is_done) (!status) true in
+  let rec go () = 
+    if (check ()) then (Thread_pool.destroy (!pool); 
+        clean_up_workers (!manager);(!final_output)) 
+    else (work () ; go (Thread.delay 0.1)) in
+  go()
 
 let map kv_pairs shared_data filename =
   let manager = 
