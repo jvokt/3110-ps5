@@ -18,20 +18,20 @@ let helper pairs manager work output =
        Hashtbl.replace (!status) (k,v) true;
        Mutex.unlock m in
   let pool = ref (Thread_pool.create 30) in
-  let work () = 
-    Hashtbl.iter 
-      (fun (k,v) is_done -> 
-       if is_done then () 
-       else Thread_pool.add_work (assign k v) (!pool)) 
-      (!status) 
-  in
+  let assign_work () = 
+    let add_unfinished (k,v) is_done =
+      if is_done then () 
+      else Thread_pool.add_work (assign k v) !pool in
+    Hashtbl.iter add_unfinished !status in
   let check () = 
-    Hashtbl.fold (fun (key,value) is_done acc-> acc&&is_done) (!status) true in
-  let rec go () = 
-    if (check ()) then (Thread_pool.destroy (!pool); 
-        clean_up_workers (!manager);(!final_output)) 
-    else (work () ; go (Thread.delay 0.1)) in
-  go()
+    Hashtbl.fold (fun _ is_done acc -> acc && is_done) (!status) true in
+  while not (check()) do
+    assign_work();
+    Thread.delay 0.1;
+  done;
+  Thread_pool.destroy (!pool); 
+  clean_up_workers (!manager);
+  !final_output
 
 let map kv_pairs shared_data filename =
   let manager = 
@@ -43,7 +43,7 @@ let map kv_pairs shared_data filename =
   helper kv_pairs manager work output
 
 let combine kv_pairs : (string * string list) list = 
-  let tbl = Hashtbl.create (List.length kv_pairs) in 
+  let tbl = Hashtbl.create 16 in 
   let output = ref [] in
   let build_table () (k, v) = 
     if (Hashtbl.mem tbl k) then let vs = Hashtbl.find tbl k in
@@ -51,9 +51,7 @@ let combine kv_pairs : (string * string list) list =
     else
       Hashtbl.add tbl k [v]
   in List.fold_left build_table () kv_pairs;
-  let make_list k vs = 
-    output := (k, vs)::!output;
-  in
+  let make_list k vs = output := (k, vs)::!output in
   Hashtbl.iter make_list tbl; !output   
 
 let reduce kvs_pairs shared_data filename = 
@@ -65,76 +63,6 @@ let reduce kvs_pairs shared_data filename =
     final_output := (k,lst)::(!final_output) in
   helper kvs_pairs manager work output
 
-(*
-open Util
-open Worker_manager
-
-let helper pairs worker_manager work output =
-  let final_output = ref [] in
-  let work_status = ref (Hashtbl.create 16) in
-  List.iter (fun (k,v) -> Hashtbl.add !work_status (k,v) false) pairs;
-  let remaining_work = ref pairs in
-  let pool = ref (Thread_pool.create 20) in
-  let m = Mutex.create () in
-  let assign (k,v) () =
-    let worker = Worker_manager.pop_worker !worker_manager in
-    let results = work worker k v in
-    match results with
-    | None -> ()
-    | Some lst ->
-        Worker_manager.push_worker !worker_manager worker;
-        Mutex.lock m;
-        output k lst final_output;
-        Hashtbl.replace !work_status (k,v) true;
-        Mutex.unlock m in
-  while !remaining_work <> [] do
-    List.iter 
-      (fun (k,v) -> 
-        Thread.delay 0.1; 
-        Thread_pool.add_work (assign (k,v)) !pool) !remaining_work;
-    remaining_work := Hashtbl.fold 
-      (fun kv is_done acc -> 
-        if not is_done then kv::acc else acc) !work_status [];
-    Thread.delay 0.1;
-  done;
-  Thread_pool.destroy !pool;
-  Worker_manager.clean_up_workers !worker_manager;
-  !final_output
-
-let map kv_pairs shared_data map_filename : (string * string) list =
-  let worker_manager = 
-    ref (Worker_manager.initialize_mappers map_filename shared_data) in
-  let work =
-    Worker_manager.map in
-  let output k lst final_output = 
-    final_output := List.rev_append lst !final_output in
-  print_endline "mapping";
-  helper kv_pairs worker_manager work output
-
-let combine kv_pairs : (string * string list) list = 
-  let tbl = Hashtbl.create (List.length kv_pairs) in 
-  let output = ref [] in
-  let build_table () (k, v) = 
-    if (Hashtbl.mem tbl k) then let vs = Hashtbl.find tbl k in
-      Hashtbl.replace tbl k (v::vs)
-    else
-      Hashtbl.add tbl k [v]
-  in List.fold_left build_table () kv_pairs;
-  let make_list k vs = 
-    output := (k, vs)::!output;
-  in
-  Hashtbl.iter make_list tbl; !output   
-
-let reduce kvs_pairs shared_data reduce_filename : (string * string list) list =
-  let worker_manager = 
-    ref (Worker_manager.initialize_reducers reduce_filename "") in
-  let work =
-    Worker_manager.reduce in
-  let output k lst final_output = 
-    final_output := (k,lst)::(!final_output) in
-  print_endline "reducing";
-  helper kvs_pairs worker_manager work output
-*)
 let map_reduce (app_name : string) (mapper : string) 
     (reducer : string) (filename : string) =
   let app_dir = Printf.sprintf "apps/%s/" app_name in
