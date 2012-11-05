@@ -1,6 +1,6 @@
 let (id,links) = Program.get_input() in
-let links = Marshal.from_string links 0 in
-let shared = Marshal.from_string (Program.get_shared_data()) 0 in
+let links = Util.unmarshal links in
+let shared = Util.unmarshal (Program.get_shared_data()) in
 let num_links = float_of_int (List.length links) in
 let old_PR = Hashtbl.find shared id in
 let new_PRs = List.map 
