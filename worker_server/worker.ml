@@ -1,7 +1,11 @@
 open Protocol
 open Util
 
-let activeWorkers = Hashtbl.create 10 
+let activeWorkers = Hashtbl.create 16 
+
+let mem = Hashtbl.mem
+
+let find = Hashtbl.find
 
 let m = Mutex.create ()
 
@@ -16,17 +20,17 @@ let send_response client response =
 let mapper_builder source shared_data : worker_response = 
   match Program.build source with
   | (Some(id), _) -> 
-    (Mutex.lock m;
-    Hashtbl.add activeWorkers id "mapper"; 
-    Program.write_shared_data id shared_data;
-    Mutex.unlock m;
-    Mapper(Some(id),shared_data))
+      (Mutex.lock m;
+      Hashtbl.add activeWorkers id "mapper"; 
+      Program.write_shared_data id shared_data;
+      Mutex.unlock m;
+      Mapper(Some(id),shared_data))
   | (None, error_msg) -> Mapper(None, error_msg) 
 
 let reducer_builder source : worker_response =
   match Program.build source with 
   | (Some(id), _) -> 
-    (Mutex.lock m;
+      (Mutex.lock m;
       Hashtbl.add activeWorkers id "reducer"; 
       Mutex.unlock m;
       Reducer(Some(id),""))
@@ -35,12 +39,12 @@ let reducer_builder source : worker_response =
 let map_requester client id results =
   match results with
   | None -> send_response client (RuntimeError(id,"Error"))
-  | Some result -> send_response client (MapResults(id, result))
+  | Some result -> send_response client (MapResults(id,result))
     
 let red_requester client id results =
   match results with
   | None -> send_response client (RuntimeError(id,"Error"))
-  | Some result -> send_response client (ReduceResults(id, result))
+  | Some result -> send_response client (ReduceResults(id,result))
 
 let rec handle_request client =
   match Connection.input client with
@@ -54,30 +58,20 @@ let rec handle_request client =
         if (send_response client built) then handle_request client else ()
     | MapRequest (id, k, v) -> 
         let response = 
-        let isMap = 
-          Mutex.lock m;
-          (Hashtbl.mem activeWorkers id 
-          && Hashtbl.find activeWorkers id = "mapper") in
-          Mutex.unlock m;
-        if isMap then
-          let results = Program.run id (k,v)
-          in map_requester client id results
-        else 
-          send_response client (InvalidWorker (id)) in
-        if response then handle_request client else ()
+          if (mem activeWorkers id && find activeWorkers id = "mapper") then
+            let results = Program.run id (k,v)
+            in map_requester client id results
+          else 
+            send_response client (InvalidWorker(id)) 
+        in if response then handle_request client else ()
     | ReduceRequest (id, k, v) -> 
-        let response = 
-        let isReduce = 
-          Mutex.lock m;
-          (Hashtbl.mem activeWorkers id 
-          && Hashtbl.find activeWorkers id = "reducer") in
-          Mutex.unlock m;
-        if isReduce then
-          let results = Program.run id (k,v)
-          in red_requester client id results
-        else 
-          send_response client (InvalidWorker (id)) in
-        if response then handle_request client else ())
+        let response =  
+          if (mem activeWorkers id && find activeWorkers id = "reducer") then
+            let results = Program.run id (k,v) in 
+            red_requester client id results
+          else 
+            send_response client (InvalidWorker(id))
+        in if response then handle_request client else ())
   | None ->
       Connection.close client;
       print_endline "Connection lost while waiting for request."
