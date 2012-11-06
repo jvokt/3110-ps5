@@ -24,17 +24,19 @@ let iter f table =
   done
 
 let remove table key = 
-  if (mem table key) then (table.size := !(table.size) - 1) else ();
-  let i = (table.hash key) mod !(table.capacity) in 
-  let chain = !(table.contents).(i) in
-  !(table.contents).(i) <- List.filter (fun (k,v) -> k <> key) chain 
+  if (mem table key) then 
+    table.size := !(table.size) - 1;
+    let i = (table.hash key) mod !(table.capacity) in 
+    let chain = !(table.contents).(i) in
+    !(table.contents).(i) <- List.filter (fun (k,v) -> k <> key) chain 
+  else ()
     
 let rec add table key value = 
-  if not (mem table key) then table.size := !(table.size) + 1 
-  else remove table key;  
+  remove table key;  
   if !(table.capacity) <= !(table.size)*2 then resize table else ();
   let i = (table.hash key) mod !(table.capacity) in
   !(table.contents).(i) <- (key, value)::(!(table.contents).(i));
+  table.size := !(table.size) + 1   
 
 and resize table =
   let table' = create (!(table.capacity)*2) table.hash in
