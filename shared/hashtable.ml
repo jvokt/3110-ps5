@@ -12,11 +12,7 @@ let create capacity hash =
 
 let mem table key = 
   let i = (table.hash key) mod !(table.capacity) in
-  let rec matcher chain =
-    match chain with
-    | [] -> false
-    | (k, v)::t -> k == key || matcher t
-  in matcher !(table.contents).(i)
+    List.fold_left (fun x (k,v) -> x || (k = key)) false !(table.contents).(i)
 
 let iter f table =
   for i = 0 to !(table.capacity) - 1 do
@@ -32,24 +28,24 @@ let remove table key =
   else ()
     
 let rec add table key value = 
-  remove table key;  
   if !(table.capacity) <= !(table.size)*2 then resize table else ();
+  remove table key;  
   let i = (table.hash key) mod !(table.capacity) in
   !(table.contents).(i) <- (key, value)::(!(table.contents).(i));
-  table.size := !(table.size) + 1   
+  table.size := !(table.size) + 1
 
 and resize table =
   let table' = create (!(table.capacity)*2) table.hash in
   iter (fun k v -> add table' k v) table;
   table.contents := !(table'.contents);
-  table.capacity := !(table'.capacity) 
+  table.capacity := !(table'.capacity)
 
 let find table key =
   let i = (table.hash key) mod !(table.capacity) in
   let rec matcher chain =
     match chain with
     | [] -> raise Not_found
-    | (k, v)::t -> if k == key then v else matcher t
+    | (k, v)::t -> if k = key then v else matcher t
   in matcher !(table.contents).(i)  
 
 let fold f table init = 
