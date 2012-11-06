@@ -25,10 +25,10 @@ let iter f table =
 
 let remove table key = 
   if (mem table key) then 
-    table.size := !(table.size) - 1;
+    (table.size := !(table.size) - 1;
     let i = (table.hash key) mod !(table.capacity) in 
     let chain = !(table.contents).(i) in
-    !(table.contents).(i) <- List.filter (fun (k,v) -> k <> key) chain 
+    !(table.contents).(i) <- List.filter (fun (k,v) -> k <> key) chain)
   else ()
     
 let rec add table key value = 
