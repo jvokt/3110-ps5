@@ -15,14 +15,12 @@ let mem table key =
   let rec matcher chain =
     match chain with
     | [] -> false
-    | (k, v)::t -> if k == key then true else matcher t
+    | (k, v)::t -> k == key || matcher t
   in matcher !(table.contents).(i)
 
 let iter f table =
   for i = 0 to !(table.capacity) - 1 do
-    match !(table.contents).(i) with
-    | [] -> ()
-    | lst -> List.iter (fun (key, value) -> f key value) lst
+    List.iter (fun (key, value) -> f key value) !(table.contents).(i)
   done
 
 let remove table key = 
