@@ -24,7 +24,7 @@ let mapper_builder source shared_data : worker_response =
       Hashtbl.add activeWorkers id "mapper"; 
       Program.write_shared_data id shared_data;
       Mutex.unlock m;
-      Mapper(Some(id),shared_data))
+      Mapper(Some(id),""))
   | (None, error_msg) -> Mapper(None, error_msg) 
 
 let reducer_builder source : worker_response =
