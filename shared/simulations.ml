@@ -83,7 +83,7 @@ let swarm =
     | (false, false) -> (m,(x,y),(0.,v))
     | (false, true)  -> (m,(x,y),(v,0.)) in
   let rec bodies n acc = 
-    if n < 0 then acc
+    if n = 0 then acc
     else bodies (n-1) ((string_of_int n, (b_cw(pos mass)(r_vel())))::acc) in
   ("300",  bodies 300 [])
 
@@ -166,43 +166,20 @@ let terrible_situation =
     else bodies (n-1) ((string_of_int n, (mass n, pos n, speed n))::acc) in
   ("3", bodies 2 [])
 
+(* Ternary Star: jpv52 & tms245 *)
 let zardoz = 
+  let scale = 3.0 in
   let pos = function
     | 0 -> (50.,0.)
-    | 1 -> (-25.0,44.3)
-    | _ -> (-25.0,-44.3) in
+    | 1 -> (-25.0,43.30127019)
+    | _ -> (-25.0,-43.30127019) in
   let vel = function
-    | 0 -> (0.,3.) 
-    | 1 -> ((3./.2.)*.(-1.77),(3./.2.)*.(-1.0))
-    | _ -> ((3./.2.)*.1.77,(3./.2.)*.(-1.0)) in
+    | 0 -> Plane.scale_point scale (0.0,1.0) 
+    | 1 -> Plane.scale_point scale (-0.8660254038,-0.5)
+    | _ -> Plane.scale_point scale (0.8660254038,-0.5) in
   let mass = mass *. 150. in
   let rec bodies n acc = 
     if n < 0 then acc
-    else
-      bodies (n-1) ((string_of_int n, (mass, pos n, vel n))::acc) in
+    else bodies (n-1) ((string_of_int n, (mass, pos n, vel n))::acc) in
   ("3",bodies 2 [])
 
-(* Behold the deuterium ion *)
-let deuterium_ion =
-  let proton_mass = 1.6749*.mass in
-  let neutron_mass = 1.6726*.mass in
-  let nucleus_mass = proton_mass +. neutron_mass in
-  let electron_mass = 0.91094*.mass in
-  let electron_velocity = 1.19 in
-  let mass = function
-    | 0 -> nucleus_mass
-    | 1 -> electron_mass
-    | _ -> electron_mass in
-  let pos = function
-    | 0 -> origin
-    | 1 -> (0.,50.)
-    | _ -> (0., (-50.)) in 
-  let vel = function
-    | 0 -> origin
-    | 1 -> (electron_velocity,0.)
-    | _ -> ((-.electron_velocity), (0.)) in 
-  let rec bodies n acc = 
-    if n < 0 then acc
-    else
-      bodies (n-1) ((string_of_int n, (mass n, pos n, vel n))::acc) in
-  ("3",bodies 2 [])
