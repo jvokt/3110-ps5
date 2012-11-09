@@ -166,7 +166,7 @@ let terrible_situation =
     else bodies (n-1) ((string_of_int n, (mass n, pos n, speed n))::acc) in
   ("3", bodies 2 [])
 
-(* Ternary Star: jpv52 & tms245 *)
+(* Trinary Star: jpv52 & tms245 *)
 let zardoz = 
   let scale = 3.0 in
   let pos = function

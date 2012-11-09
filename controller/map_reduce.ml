@@ -12,11 +12,12 @@ let helper pairs manager work output =
     match results with
     | None -> ()
     | Some lst -> 
-       Worker_manager.push_worker (!manager) worker;
-       Mutex.lock m;
-       output k lst final_output;
-       Hashtbl.replace (!status) (k,v) true;
-       Mutex.unlock m in
+        Worker_manager.push_worker (!manager) worker;
+        Mutex.lock m;
+        if Hashtbl.find (!status) (k,v) then ()
+        else output k lst final_output;
+        Hashtbl.replace (!status) (k,v) true;
+        Mutex.unlock m in
   let pool = ref (Thread_pool.create 30) in
   let assign_work () = 
     let add_unfinished (k,v) is_done =
